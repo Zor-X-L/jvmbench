@@ -1,5 +1,11 @@
 package liu.xiao.zor.jvmbench;
 
+import java.io.BufferedWriter;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+
 public class Smallpt {
 
     public static double erand48(int[] xsubi) {
@@ -106,7 +112,7 @@ public class Smallpt {
         }
     }
 
-    public Sphere[] spheres = new Sphere[]{ //Scene: radius, position, emission, color, material
+    public static Sphere[] spheres = new Sphere[]{ //Scene: radius, position, emission, color, material
             new Sphere(1e5, new Vec(1e5 + 1, 40.8, 81.6), new Vec(), new Vec(.75, .25, .25), Refl_t.DIFF), //Left
             new Sphere(1e5, new Vec(1e5 + 1, 40.8, 81.6), new Vec(), new Vec(.75, .25, .25), Refl_t.DIFF),//Left
             new Sphere(1e5, new Vec(-1e5 + 99, 40.8, 81.6), new Vec(), new Vec(.25, .25, .75), Refl_t.DIFF),//Rght
@@ -161,9 +167,9 @@ public class Smallpt {
         }
     }
 
-    public boolean intersect(final Ray r, MutableDouble t, MutableInteger id) {
-        double n = spheres.length, d, inf = t.set(1e20);
-        for (int i = (int) n; i >= 0; --i) {
+    public static boolean intersect(final Ray r, MutableDouble t, MutableInteger id) {
+        double d, inf = t.set(1e20);
+        for (int i = spheres.length - 1; i >= 0; --i) {
             d = spheres[i].intersect(r);
             if (d != 0 && d < t.get()) {
                 t.set(d);
@@ -173,7 +179,7 @@ public class Smallpt {
         return t.get() < inf;
     }
 
-    public Vec radiance(final Ray r, int depth, int[] Xi) {
+    public static Vec radiance(final Ray r, int depth, int[] Xi) {
         MutableDouble t = new MutableDouble(0); // distance to intersection
         MutableInteger id = new MutableInteger(0); // id of intersected object
         if (!intersect(r, t, id)) { // if miss, return black
@@ -206,8 +212,39 @@ public class Smallpt {
                 radiance(reflRay, depth, Xi).scale(Re).add(radiance(new Ray(x, tdir), depth, Xi).scale(Tr))));
     }
 
-    public static void main(String[] args) {
-        int w=1024, h=768, samps = args.length>0 ? Integer.parseInt(args[0]) / 4 : 1; // # samples
-        Ray cam = new Ray(new Vec(50, 52, 295.6), new Vec(0, -0.042612,-1).norm()); // cam pos, dir
+    public static void main(String[] args) throws Exception {
+        int w = 1024, h = 768, samps = args.length > 0 ? Integer.parseInt(args[0]) / 4 : 1; // # samples
+        Ray cam = new Ray(new Vec(50, 52, 295.6), new Vec(0, -0.042612, -1).norm()); // cam pos, dir
+        Vec cx = new Vec(w * .5135 / h), cy = cx.cross(cam.d).norm().scale(.5135), r = new Vec();
+        Vec[] c = new Vec[w * h];
+        for (int i = 0; i < c.length; ++i) {
+            c[i] = new Vec();
+        }
+        for (int y = 0; y < h; y++) { // Loop over image rows
+            int[] Xi = new int[3];
+            Xi[2] = y * y * y;
+            for (int x = 0; x < w; x++) {  // Loop cols
+                for (int sy = 0, i = (h - y - 1) * w + x; sy < 2; sy++) { // 2x2 subpixel rows
+                    for (int sx = 0; sx < 2; sx++, r = new Vec()) { // 2x2 subpixel cols
+                        for (int s = 0; s < samps; s++) {
+                            double r1 = 2 * erand48(Xi), dx = r1 < 1 ? Math.sqrt(r1) - 1 : 1 - Math.sqrt(2 - r1);
+                            double r2 = 2 * erand48(Xi), dy = r2 < 1 ? Math.sqrt(r2) - 1 : 1 - Math.sqrt(2 - r2);
+                            Vec d = cx.scale(((sx + .5 + dx) / 2 + x) / w - .5)
+                                    .add(cy.scale(((sy + .5 + dy) / 2 + y) / h - .5))
+                                    .add(cam.d);
+                            r = r.add(radiance(new Ray(cam.o.add(d.scale(140)), d.norm()), 0, Xi)).scale(1. / samps);
+                        } // Camera rays are pushed ^^^^^ forward to start in interior
+                        c[i] = c[i].add(new Vec(clamp(r.x), clamp(r.y), clamp(r.z)).scale(.25));
+                    }
+                }
+            }
+        }
+        try (BufferedWriter writer = Files.newBufferedWriter(
+                Paths.get("image.ppm"), StandardCharsets.ISO_8859_1)) {
+            writer.write("P3\n" + w + " " + h + " 255\n");
+            for (int i = 0; i < w * h; i++) {
+                writer.write("" + toInt(c[i].x) + " " + toInt(c[i].y) + " " + toInt(c[i].z) + "\n");
+            }
+        }
     }
 }

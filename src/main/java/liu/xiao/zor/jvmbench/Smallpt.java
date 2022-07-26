@@ -1,7 +1,6 @@
 package liu.xiao.zor.jvmbench;
 
 import java.io.BufferedWriter;
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -69,10 +68,10 @@ public class Smallpt {
         }
 
         public Vec norm() {
-            double n = Math.sqrt(x * x + y * y + z * z);
-            x /= n;
-            y /= n;
-            z /= n;
+            double scale = 1 / Math.sqrt(x * x + y * y + z * z);
+            x *= scale;
+            y *= scale;
+            z *= scale;
             return this;
         }
     }
@@ -98,6 +97,7 @@ public class Smallpt {
             p = p_;
             e = e_;
             c = c_;
+            refl = refl_;
         }
 
         double intersect(final Ray r) { // returns distance, 0 if nohit
@@ -113,7 +113,6 @@ public class Smallpt {
     }
 
     public static Sphere[] spheres = new Sphere[]{ //Scene: radius, position, emission, color, material
-            new Sphere(1e5, new Vec(1e5 + 1, 40.8, 81.6), new Vec(), new Vec(.75, .25, .25), Refl_t.DIFF), //Left
             new Sphere(1e5, new Vec(1e5 + 1, 40.8, 81.6), new Vec(), new Vec(.75, .25, .25), Refl_t.DIFF),//Left
             new Sphere(1e5, new Vec(-1e5 + 99, 40.8, 81.6), new Vec(), new Vec(.25, .25, .75), Refl_t.DIFF),//Rght
             new Sphere(1e5, new Vec(50, 40.8, 1e5), new Vec(), new Vec(.75, .75, .75), Refl_t.DIFF),//Back
@@ -199,7 +198,7 @@ public class Smallpt {
             return obj.e.add(f.mult(radiance(new Ray(x, r.d.subtract(n.scale(2 * n.dot(r.d)))), depth, Xi)));
         }
         Ray reflRay = new Ray(x, r.d.subtract(n.scale(2 * n.dot(r.d)))); // Ideal dielectric REFRACTION
-        boolean into = n.dot(n) > 0; // Ray from outside going in?
+        boolean into = n.dot(nl) > 0; // Ray from outside going in?
         double nc = 1, nt = 1.5, nnt = into ? nc / nt : nt / nc, ddn = r.d.dot(nl), cos2t;
         if ((cos2t = 1 - nnt * nnt * (1 - ddn * ddn)) < 0) {   // Total internal reflection
             return obj.e.add(f.mult(radiance(reflRay, depth, Xi)));
@@ -232,7 +231,7 @@ public class Smallpt {
                             Vec d = cx.scale(((sx + .5 + dx) / 2 + x) / w - .5)
                                     .add(cy.scale(((sy + .5 + dy) / 2 + y) / h - .5))
                                     .add(cam.d);
-                            r = r.add(radiance(new Ray(cam.o.add(d.scale(140)), d.norm()), 0, Xi)).scale(1. / samps);
+                            r = r.add(radiance(new Ray(cam.o.add(d.scale(140)), d.norm()), 0, Xi).scale(1. / samps));
                         } // Camera rays are pushed ^^^^^ forward to start in interior
                         c[i] = c[i].add(new Vec(clamp(r.x), clamp(r.y), clamp(r.z)).scale(.25));
                     }

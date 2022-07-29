@@ -7,17 +7,20 @@ import java.nio.file.Paths;
 
 public class SmallPt {
 
-    public static double eRand48(int[] xSubI) {
+    public static double eRand48(short[] xSubI) {
         final long m = 1L << 48;
         final long a = 0x5DEECE66DL;
         final long c = 0xB;
 
-        long x = xSubI[0] + ((long) xSubI[1] << 16) + ((long) xSubI[2] << 32);
+        long x = Short.toUnsignedLong(xSubI[0])
+                | (Short.toUnsignedLong(xSubI[1]) << 16)
+                | (Short.toUnsignedLong(xSubI[2]) << 32);
+
         x = (a * x + c) & (m - 1);
 
-        xSubI[0] = (int) ((x) & 0xFFFF);
-        xSubI[1] = (int) ((x >> 16) & 0xFFFF);
-        xSubI[2] = (int) ((x >> 32) & 0xFFFF);
+        xSubI[0] = (short) (x & 0xFFFF);
+        xSubI[1] = (short) ((x >> 16) & 0xFFFF);
+        xSubI[2] = (short) ((x >> 32) & 0xFFFF);
 
         return (double) x / m;
     }
@@ -172,7 +175,7 @@ public class SmallPt {
         return t.get() < inf;
     }
 
-    public static Vec radiance(final Ray r, int depth, int[] Xi) {
+    public static Vec radiance(final Ray r, int depth, short[] Xi) {
         MutableDouble t = new MutableDouble(0); // distance to intersection
         MutableInteger id = new MutableInteger(0); // id of intersected object
         if (!intersect(r, t, id)) return new Vec(); // if miss, return black
@@ -208,8 +211,7 @@ public class SmallPt {
         Vec[] c = new Vec[w * h];
         for (int i = 0; i < c.length; ++i) c[i] = new Vec();
         for (int y = 0; y < h; y++) { // Loop over image rows
-            int[] Xi = new int[3];
-            Xi[2] = y * y * y;
+            short[] Xi = new short[3]; Xi[2] = (short)(y * y * y);
             for (int x = 0; x < w; x++) {  // Loop cols
                 for (int sy = 0, i = (h - y - 1) * w + x; sy < 2; sy++) { // 2x2 subpixel rows
                     for (int sx = 0; sx < 2; sx++, r = new Vec()) { // 2x2 subpixel cols

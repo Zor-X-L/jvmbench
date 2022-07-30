@@ -221,7 +221,14 @@ public class SmallPt {
                             double r2 = 2 * eRand48(Xi), dy = r2 < 1 ? Math.sqrt(r2) - 1 : 1 - Math.sqrt(2 - r2);
                             Vec d = cx.scale(((sx + .5 + dx) / 2 + x) / w - .5)
                                     .add(cy.scale(((sy + .5 + dy) / 2 + y) / h - .5)).add(cam.d);
-                            r = r.add(radiance(new Ray(cam.o.add(d.scale(140)), d.norm()), 0, Xi).scale(1. / samples));
+                            // "Ray(cam.o+d*140,d.norm()" is an unspecified behavior.
+                            // With gcc, d.norm() will be evaluated first (thus normalized d), and produce the correct result
+                            // With clang and Java, cam.o+d*140 will be evaluated first,
+                            // produce several white lines at the top of the result.
+                            // But even after fixing the issue, gcc and clang still produce different result.
+                            // Maybe because different implementation of math functions like sin, cos, etc.
+                            d.norm();
+                            r = r.add(radiance(new Ray(cam.o.add(d.scale(140)), d), 0, Xi).scale(1. / samples));
                         } // Camera rays are pushed ^^^^^ forward to start in interior
                         c[i] = c[i].add(new Vec(clamp(r.x), clamp(r.y), clamp(r.z)).scale(.25));
                     }

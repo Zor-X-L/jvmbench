@@ -178,7 +178,7 @@ public class SmallPt {
     public static Vec radiance(final Ray r, int depth, short[] Xi) {
         MutableDouble t = new MutableDouble(0); // distance to intersection
         MutableInteger id = new MutableInteger(0); // id of intersected object
-        if (!intersect(r, t, id)) return new Vec(); // if miss, return black
+        if (!intersect(r, t, id)) return new Vec(); // if missed, return black
         final Sphere obj = spheres[id.get()]; // the hit object
         Vec x = r.o.add(r.d.scale(t.get())), n = x.subtract(obj.p).norm(), nl = n.dot(r.d) < 0 ? n : n.scale(-1), f = obj.c;
         double p = f.x > f.y && f.x > f.z ? f.x : Math.max(f.y, f.z); // max reflectionType
@@ -211,8 +211,9 @@ public class SmallPt {
         Vec[] c = new Vec[w * h];
         for (int i = 0; i < c.length; ++i) c[i] = new Vec();
         for (int y = 0; y < h; y++) { // Loop over image rows
-            short[] Xi = new short[3]; Xi[2] = (short)(y * y * y);
-            for (int x = 0; x < w; x++) {  // Loop cols
+            short[] Xi = new short[3];
+            Xi[2] = (short) (y * y * y);
+            for (short x = 0; x < w; x++) {  // Loop cols
                 for (int sy = 0, i = (h - y - 1) * w + x; sy < 2; sy++) { // 2x2 subpixel rows
                     for (int sx = 0; sx < 2; sx++, r = new Vec()) { // 2x2 subpixel cols
                         for (int s = 0; s < samples; s++) {
@@ -229,9 +230,9 @@ public class SmallPt {
         }
         try (BufferedWriter writer = Files.newBufferedWriter(
                 Paths.get("image.ppm"), StandardCharsets.ISO_8859_1)) {
-            writer.write("P3\n" + w + " " + h + " 255\n");
+            writer.write("P3\n" + w + " " + h + "\n255\n");
             for (int i = 0; i < w * h; i++) {
-                writer.write("" + toInt(c[i].x) + " " + toInt(c[i].y) + " " + toInt(c[i].z) + "\n");
+                writer.write("" + toInt(c[i].x) + " " + toInt(c[i].y) + " " + toInt(c[i].z) + " ");
             }
         }
     }

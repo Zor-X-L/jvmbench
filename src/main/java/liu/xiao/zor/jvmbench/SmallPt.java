@@ -211,6 +211,7 @@ public class SmallPt {
         Vec[] c = new Vec[w * h];
         for (int i = 0; i < c.length; ++i) c[i] = new Vec();
         for (int y = 0; y < h; y++) { // Loop over image rows
+            System.err.printf("\rRendering (%d spp) %5.2f%%", samples * 4, 100. * y / (h - 1));
             short[] Xi = new short[3];
             Xi[2] = (short) (y * y * y);
             for (short x = 0; x < w; x++) {  // Loop cols

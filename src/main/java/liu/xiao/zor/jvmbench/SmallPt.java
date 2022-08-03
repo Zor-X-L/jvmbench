@@ -186,8 +186,8 @@ public class SmallPt {
         else return obj.e; // R.R.
         if (obj.reflectionType == ReflectionType.DIFFUSE) { // Ideal DIFFUSE reflectionType
             double r1 = 2 * Math.PI * eRand48(Xi), r2 = eRand48(Xi), r2s = Math.sqrt(r2);
-            Vec w = nl, u = ((Math.abs(w.x) > .1 ? new Vec(0, 1) : new Vec(1)).cross(w)).norm(), v = w.cross(u);
-            Vec d = u.scale(Math.cos(r1) * r2s).add(v.scale(Math.sin(r1) * r2s)).add(w.scale(Math.sqrt(1 - r2))).norm();
+            Vec u = ((Math.abs(nl.x) > .1 ? new Vec(0, 1) : new Vec(1)).cross(nl)).norm(), v = nl.cross(u);
+            Vec d = u.scale(Math.cos(r1) * r2s).add(v.scale(Math.sin(r1) * r2s)).add(nl.scale(Math.sqrt(1 - r2))).norm();
             return obj.e.add(f.multiply(radiance(new Ray(x, d), depth, Xi)));
         } else if (obj.reflectionType == ReflectionType.SPECULAR) // Ideal SPECULAR reflectionType
             return obj.e.add(f.multiply(radiance(new Ray(x, r.d.subtract(n.scale(2 * n.dot(r.d)))), depth, Xi)));

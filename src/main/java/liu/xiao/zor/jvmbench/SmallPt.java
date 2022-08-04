@@ -206,41 +206,59 @@ public class SmallPt {
                 radiance(reflectedRay, depth, Xi).scale(Re).add(radiance(new Ray(x, tDir), depth, Xi).scale(Tr))));
     }
 
-    public static void main(String[] args) throws Exception {
-        int w = 1024, h = 768, samples = args.length > 0 ? Integer.parseInt(args[0]) / 4 : 1; // # samples
-        Ray cam = new Ray(new Vec(50, 52, 295.6), new Vec(0, -0.042612, -1).norm()); // cam pos, dir
-        Vec cx = new Vec(w * .5135 / h), cy = cx.cross(cam.d).norm().scale(.5135);
+    public static final Ray CAM = new Ray(new Vec(50, 52, 295.6), new Vec(0, -0.042612, -1).norm()); // cam pos, dir
+
+    public static void renderRow(int w, int h, int quarterSamples, Vec cx, Vec cy, int y, short[] Xi, Vec[] c) {
+        for (short x = 0; x < w; x++) {  // Loop cols
+            for (int sy = 0, i = (h - y - 1) * w + x; sy < 2; sy++) { // 2x2 subpixel rows
+                for (int sx = 0; sx < 2; sx++) { // 2x2 subpixel cols
+                    Vec r = new Vec();
+                    for (int s = 0; s < quarterSamples; s++) {
+                        double r1 = 2 * eRand48(Xi), dx = r1 < 1 ? Math.sqrt(r1) - 1 : 1 - Math.sqrt(2 - r1);
+                        double r2 = 2 * eRand48(Xi), dy = r2 < 1 ? Math.sqrt(r2) - 1 : 1 - Math.sqrt(2 - r2);
+                        Vec d = cx.scale(((sx + .5 + dx) / 2 + x) / w - .5)
+                                .add(cy.scale(((sy + .5 + dy) / 2 + y) / h - .5)).add(CAM.d);
+                        // "Ray(cam.o+d*140,d.norm()" is an unspecified behavior.
+                        // With gcc, d.norm() will be evaluated first (thus normalized d), and produce the correct result
+                        // With clang and Java, cam.o+d*140 will be evaluated first,
+                        // produce several white lines at the top of the result.
+                        // But even after fixing the issue, gcc and clang still produce different result.
+                        // Maybe because different implementation of math functions like sin, cos, etc.
+                        d.norm();
+                        r = r.add(radiance(new Ray(CAM.o.add(d.scale(140)), d), 0, Xi).scale(1. / quarterSamples));
+                    } // Camera rays are pushed ^^^^^ forward to start in interior
+                    c[i] = c[i].add(new Vec(clamp(r.x), clamp(r.y), clamp(r.z)).scale(.25));
+                }
+            }
+        }
+    }
+
+    public static Vec[] render(int w, int h, int quarterSamples, short[][] Xi) {
+        Vec cx = new Vec(w * .5135 / h), cy = cx.cross(CAM.d).norm().scale(.5135);
         Vec[] c = new Vec[w * h];
-        for (int i = 0; i < c.length; ++i) c[i] = new Vec();
+        for (int i = 0; i < c.length; i++) c[i] = new Vec();
+        for (int y = 0; y < h; y++) renderRow(w, h, quarterSamples, cx, cy, y, Xi[y], c);
+        return c;
+    }
+
+    public static Vec[] parallelRender(int w, int h, int quarterSamples, short[][] Xi) {
+        Vec cx = new Vec(w * .5135 / h), cy = cx.cross(CAM.d).norm().scale(.5135);
+        Vec[] c = new Vec[w * h];
+        for (int i = 0; i < c.length; i++) c[i] = new Vec();
         List<Integer> yList = new ArrayList<>();
         for (int y = 0; y < h; y++) yList.add(y);
         yList.parallelStream().forEach(y -> {
-            System.err.printf("\rRendering (%d spp) %5.2f%%", samples * 4, 100. * y / (h - 1));
-            short[] Xi = new short[3];
-            Xi[2] = (short) (y * y * y);
-            for (short x = 0; x < w; x++) {  // Loop cols
-                for (int sy = 0, i = (h - y - 1) * w + x; sy < 2; sy++) { // 2x2 subpixel rows
-                    for (int sx = 0; sx < 2; sx++) { // 2x2 subpixel cols
-                        Vec r = new Vec();
-                        for (int s = 0; s < samples; s++) {
-                            double r1 = 2 * eRand48(Xi), dx = r1 < 1 ? Math.sqrt(r1) - 1 : 1 - Math.sqrt(2 - r1);
-                            double r2 = 2 * eRand48(Xi), dy = r2 < 1 ? Math.sqrt(r2) - 1 : 1 - Math.sqrt(2 - r2);
-                            Vec d = cx.scale(((sx + .5 + dx) / 2 + x) / w - .5)
-                                    .add(cy.scale(((sy + .5 + dy) / 2 + y) / h - .5)).add(cam.d);
-                            // "Ray(cam.o+d*140,d.norm()" is an unspecified behavior.
-                            // With gcc, d.norm() will be evaluated first (thus normalized d), and produce the correct result
-                            // With clang and Java, cam.o+d*140 will be evaluated first,
-                            // produce several white lines at the top of the result.
-                            // But even after fixing the issue, gcc and clang still produce different result.
-                            // Maybe because different implementation of math functions like sin, cos, etc.
-                            d.norm();
-                            r = r.add(radiance(new Ray(cam.o.add(d.scale(140)), d), 0, Xi).scale(1. / samples));
-                        } // Camera rays are pushed ^^^^^ forward to start in interior
-                        c[i] = c[i].add(new Vec(clamp(r.x), clamp(r.y), clamp(r.z)).scale(.25));
-                    }
-                }
-            }
+            System.err.printf("\rRendering (%d spp) %5.2f%%", quarterSamples * 4, 100. * y / (h - 1));
+            renderRow(w, h, quarterSamples, cx, cy, y, Xi[y], c);
         });
+        return c;
+    }
+
+    public static void main(String[] args) throws Exception {
+        int w = 1024, h = 768, samples = args.length > 0 ? Integer.parseInt(args[0]) / 4: 1; // # samples
+        short[][] Xi = new short[h][3];
+        for (int y = 0; y < h; y++) Xi[y][2] = (short) (y * y * y);
+        Vec[] c = parallelRender(w, h, samples, Xi);
         try (BufferedWriter writer = Files.newBufferedWriter(
                 Paths.get("image.ppm"), StandardCharsets.ISO_8859_1)) {
             writer.write("P3\n" + w + " " + h + "\n255\n");

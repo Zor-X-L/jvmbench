@@ -48,11 +48,11 @@ public class SmallPt {
             z = z_;
         }
 
-        public Vec add(final Vec b) {
+        public Vec add(Vec b) {
             return new Vec(x + b.x, y + b.y, z + b.z);
         }
 
-        public Vec subtract(final Vec b) {
+        public Vec subtract(Vec b) {
             return new Vec(x - b.x, y - b.y, z - b.z);
         }
 
@@ -60,7 +60,7 @@ public class SmallPt {
             return new Vec(x * b, y * b, z * b);
         }
 
-        public Vec multiply(final Vec b) {
+        public Vec multiply(Vec b) {
             return new Vec(x * b.x, y * b.y, z * b.z);
         }
 
@@ -72,17 +72,17 @@ public class SmallPt {
             return this;
         }
 
-        public double dot(final Vec b) {
+        public double dot(Vec b) {
             return x * b.x + y * b.y + z * b.z;
         }
 
-        public Vec cross(final Vec b) {
+        public Vec cross(Vec b) {
             return new Vec(y * b.z - z * b.y, z * b.x - x * b.z, x * b.y - y * b.x);
         }
     }
 
     public static class Ray {
-        public Vec o, d;
+        public final Vec o, d;
 
         public Ray(Vec o_, Vec d_) {
             o = o_;
@@ -93,9 +93,9 @@ public class SmallPt {
     public enum ReflectionType {DIFFUSE, SPECULAR, REFRACTIVE} // material types, used in radiance()
 
     public static class Sphere {
-        public double rad; // radius
-        public Vec p, e, c; // position, emission, color
-        public ReflectionType reflectionType; // reflection type (diffuse, specular, refractive)
+        public final double rad; // radius
+        public final Vec p, e, c; // position, emission, color
+        public final ReflectionType reflectionType; // reflection type (diffuse, specular, refractive)
 
         public Sphere(double rad_, Vec p_, Vec e_, Vec c_, ReflectionType reflectionType_) {
             rad = rad_;
@@ -105,7 +105,7 @@ public class SmallPt {
             reflectionType = reflectionType_;
         }
 
-        double intersect(final Ray r) { // returns distance, 0 if no hit
+        double intersect(Ray r) { // returns distance, 0 if no hit
             Vec op = p.subtract(r.o); // Solve t^2*d.d + 2*t*(o-p).d + (o-p).(o-p)-R^2 = 0
             double t, eps = 1e-4, b = op.dot(r.d), det = b * b - op.dot(op) + rad * rad;
             if (det < 0) return 0;
@@ -114,7 +114,7 @@ public class SmallPt {
         }
     }
 
-    public static Sphere[] spheres = new Sphere[]{ //Scene: radius, position, emission, color, material
+    public static final Sphere[] SPHERES = new Sphere[] { //Scene: radius, position, emission, color, material
             new Sphere(1e5, new Vec(1e5 + 1, 40.8, 81.6), new Vec(), new Vec(.75, .25, .25), ReflectionType.DIFFUSE),//Left
             new Sphere(1e5, new Vec(-1e5 + 99, 40.8, 81.6), new Vec(), new Vec(.25, .25, .75), ReflectionType.DIFFUSE),//Right
             new Sphere(1e5, new Vec(50, 40.8, 1e5), new Vec(), new Vec(.75, .75, .75), ReflectionType.DIFFUSE),//Back
@@ -167,21 +167,21 @@ public class SmallPt {
         }
     }
 
-    public static boolean intersect(final Ray r, MutableDouble t, MutableInteger id) {
+    public static boolean intersect(Ray r, MutableDouble t, MutableInteger id) {
         double d, inf = t.set(1e20);
-        for (int i = spheres.length - 1; i >= 0; --i)
-            if ((d = spheres[i].intersect(r)) != 0 && d < t.get()) {
+        for (int i = SPHERES.length - 1; i >= 0; --i)
+            if ((d = SPHERES[i].intersect(r)) != 0 && d < t.get()) {
                 t.set(d);
                 id.set(i);
             }
         return t.get() < inf;
     }
 
-    public static Vec radiance(final Ray r, int depth, short[] Xi) {
+    public static Vec radiance(Ray r, int depth, short[] Xi) {
         MutableDouble t = new MutableDouble(0); // distance to intersection
         MutableInteger id = new MutableInteger(0); // id of intersected object
         if (!intersect(r, t, id)) return new Vec(); // if missed, return black
-        final Sphere obj = spheres[id.get()]; // the hit object
+        Sphere obj = SPHERES[id.get()]; // the hit object
         Vec x = r.o.add(r.d.scale(t.get())), n = x.subtract(obj.p).norm(), nl = n.dot(r.d) < 0 ? n : n.scale(-1), f = obj.c;
         double p = f.x > f.y && f.x > f.z ? f.x : Math.max(f.y, f.z); // max reflectionType
         if (++depth > 5) if (eRand48(Xi) < p) f = f.scale(1 / p);

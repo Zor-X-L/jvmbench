@@ -6,6 +6,7 @@ import org.junit.Test;
 import java.io.BufferedInputStream;
 import java.io.BufferedWriter;
 import java.io.InputStream;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -83,6 +84,18 @@ public class SmallPtTest {
     private static final int SAMPLES = 25000;
     private static final double DIFFERENCE_THRESHOLD = 0.02;
     private static final Class<SmallPtTest> CLASS = SmallPtTest.class;
+    private static final String RESOURCE_ROOT;
+
+    static {
+        String resourceRoot;
+        try {
+            resourceRoot = Paths.get(CLASS.getResource("/").toURI()).toString();
+        } catch (URISyntaxException e) {
+            resourceRoot = null;
+            e.printStackTrace();
+        }
+        RESOURCE_ROOT = resourceRoot;
+    }
 
     // correct results
     private static final Ppm RESULT_GCC = new Ppm(CLASS.getResourceAsStream("/smallPt-gcc25k.ppm"));
@@ -146,9 +159,7 @@ public class SmallPtTest {
         for (int y = 0; y < HEIGHT; y++) Xi[y][2] = (short) (y * y * y);
         SmallPt.Vec[] c = SmallPt.parallelRender(WIDTH, HEIGHT, SAMPLES / 4, Xi);
         Ppm ppm = new Ppm(WIDTH, HEIGHT, c);
-        ppm.write(Paths.get(
-                Paths.get(this.getClass().getResource("/").toURI()).toString(),
-                "SmallPt-parallelRender25k.ppm"));
+        ppm.write(Paths.get(RESOURCE_ROOT, "smallPt-parallelRender25k.ppm"));
         assertResultCorrect(ppm);
     }
 
@@ -164,9 +175,7 @@ public class SmallPtTest {
         }
         SmallPt.Vec[] c = SmallPt.parallelRender(WIDTH, HEIGHT, SAMPLES / 4, Xi);
         Ppm ppm = new Ppm(WIDTH, HEIGHT, c);
-        ppm.write(Paths.get(
-                Paths.get(this.getClass().getResource("/").toURI()).toString(),
-                "SmallPt-parallelRenderRandom25k.ppm"));
+        ppm.write(Paths.get(RESOURCE_ROOT, "smallPt-parallelRenderRandom25k.ppm"));
         assertResultCorrect(ppm);
     }
 

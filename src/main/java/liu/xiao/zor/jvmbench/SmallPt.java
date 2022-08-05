@@ -126,6 +126,8 @@ public class SmallPt {
             new Sphere(600, new Vec(50, 681.6 - .27, 81.6), new Vec(12, 12, 12), new Vec(), ReflectionType.DIFFUSE) //Lite
     };
 
+    public static final Ray CAM = new Ray(new Vec(50, 52, 295.6), new Vec(0, -0.042612, -1).norm()); // cam pos, dir
+
     public static double clamp(double a) {
         return a < 0 ? 0 : a > 1 ? 1 : a;
     }
@@ -206,7 +208,64 @@ public class SmallPt {
                 radiance(reflectedRay, depth, Xi).scale(Re).add(radiance(new Ray(x, tDir), depth, Xi).scale(Tr))));
     }
 
-    public static final Ray CAM = new Ray(new Vec(50, 52, 295.6), new Vec(0, -0.042612, -1).norm()); // cam pos, dir
+    public static Vec radianceForward(Ray r_, int depth_, short[] Xi) {
+        MutableDouble t = new MutableDouble(0); // distance to intersection
+        MutableInteger id = new MutableInteger(0); // id of intersected object
+        Ray r = r_;
+        int depth = depth_;
+        // L0 = Le0 + f0*(L1)
+        //    = Le0 + f0*(Le1 + f1*L2)
+        //    = Le0 + f0*(Le1 + f1*(Le2 + f2*(L3))
+        //    = Le0 + f0*(Le1 + f1*(Le2 + f2*(Le3 + f3*(L4)))
+        //    = ...
+        //    = Le0 + f0*Le1 + f0*f1*Le2 + f0*f1*f2*Le3 + f0*f1*f2*f3*Le4 + ...
+        //
+        // So:
+        // F = 1
+        // while (1){
+        //   L += F*Lei
+        //   F *= fi
+        // }
+        Vec cl = new Vec(0, 0, 0); // accumulated color
+        Vec cf = new Vec(1, 1, 1); // accumulated reflectance
+        while (true) {
+            if (!intersect(r, t, id)) return cl; // if missed, return black
+            Sphere obj = SPHERES[id.get()]; // the hit object
+            Vec x = r.o.add(r.d.scale(t.get())), n = x.subtract(obj.p).norm(), nl = n.dot(r.d) < 0 ? n : n.scale(-1), f = obj.c;
+            double p = f.x > f.y && f.x > f.z ? f.x : Math.max(f.y, f.z); // max reflection
+            cl = cl.add(cf.multiply(obj.e));
+            if (++depth > 5) if (eRand48(Xi) < p) f = f.scale(1 / p);
+            else return cl; //R.R.
+            cf = cf.multiply(f);
+            if (obj.reflectionType == ReflectionType.DIFFUSE) { // Ideal DIFFUSE reflection
+                double r1 = 2 * Math.PI * eRand48(Xi), r2 = eRand48(Xi), r2s = Math.sqrt(r2);
+                Vec u = ((Math.abs(nl.x) > .1 ? new Vec(0, 1) : new Vec(1)).cross(nl)).norm(), v = nl.cross(u);
+                Vec d = u.scale(Math.cos(r1) * r2s).add(v.scale(Math.sin(r1) * r2s)).add(nl.scale(Math.sqrt(1 - r2))).norm();
+                r = new Ray(x, d);
+                continue;
+            } else if (obj.reflectionType == ReflectionType.SPECULAR) { // Ideal SPECULAR reflection
+                r = new Ray(x, r.d.subtract(n.scale(2 * n.dot(r.d))));
+                continue;
+            }
+            Ray reflectedRay = new Ray(x, r.d.subtract(n.scale(2 * n.dot(r.d)))); // Ideal dielectric REFRACTION
+            boolean into = n.dot(nl) > 0; // Ray from outside going in?
+            double nc = 1, nt = 1.5, nnt = into ? nc / nt : nt / nc, ddn = r.d.dot(nl), cos2t;
+            if ((cos2t = 1 - nnt * nnt * (1 - ddn * ddn)) < 0) { // Total internal reflection
+                r = reflectedRay;
+                continue;
+            }
+            Vec tDir = r.d.scale(nnt).subtract(n.scale((into ? 1 : -1) * (ddn * nnt + Math.sqrt(cos2t)))).norm();
+            double a = nt - nc, b = nt + nc, R0 = a * a / (b * b), c = 1 - (into ? -ddn : tDir.dot(n));
+            double Re = R0 + (1 - R0) * c * c * c * c * c, Tr = 1 - Re, P = .25 + .5 * Re, RP = Re / P, TP = Tr / (1 - P);
+            if (eRand48(Xi) < P) {
+                cf = cf.scale(RP);
+                r = reflectedRay;
+            } else {
+                cf = cf.scale(TP);
+                r = new Ray(x, tDir);
+            }
+        }
+    }
 
     public static void renderRow(int w, int h, int quarterSamples, Vec cx, Vec cy, int y, short[] Xi, Vec[] c) {
         for (short x = 0; x < w; x++) {  // Loop cols
@@ -225,7 +284,7 @@ public class SmallPt {
                         // But even after fixing the issue, gcc and clang still produce different result.
                         // Maybe because different implementation of math functions like sin, cos, etc.
                         d.norm();
-                        r = r.add(radiance(new Ray(CAM.o.add(d.scale(140)), d), 0, Xi).scale(1. / quarterSamples));
+                        r = r.add(radianceForward(new Ray(CAM.o.add(d.scale(140)), d), 0, Xi).scale(1. / quarterSamples));
                     } // Camera rays are pushed ^^^^^ forward to start in interior
                     c[i] = c[i].add(new Vec(clamp(r.x), clamp(r.y), clamp(r.z)).scale(.25));
                 }
@@ -255,7 +314,7 @@ public class SmallPt {
     }
 
     public static void main(String[] args) throws Exception {
-        int w = 1024, h = 768, samples = args.length > 0 ? Integer.parseInt(args[0]) / 4: 1; // # samples
+        int w = 1024, h = 768, samples = args.length > 0 ? Integer.parseInt(args[0]) / 4 : 1; // # samples
         short[][] Xi = new short[h][3];
         for (int y = 0; y < h; y++) Xi[y][2] = (short) (y * y * y);
         Vec[] c = parallelRender(w, h, samples, Xi);

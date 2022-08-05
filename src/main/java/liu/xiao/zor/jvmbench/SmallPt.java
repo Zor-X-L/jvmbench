@@ -1,11 +1,15 @@
 package liu.xiao.zor.jvmbench;
 
+import org.openjdk.jmh.annotations.*;
+
 import java.io.BufferedWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 public class SmallPt {
 
@@ -179,7 +183,7 @@ public class SmallPt {
         return t.get() < inf;
     }
 
-    public static Vec radiance(Ray r, int depth, short[] Xi) {
+    private static Vec radiance(Ray r, int depth, short[] Xi) {
         MutableDouble t = new MutableDouble(0); // distance to intersection
         MutableInteger id = new MutableInteger(0); // id of intersected object
         if (!intersect(r, t, id)) return new Vec(); // if missed, return black
@@ -325,5 +329,36 @@ public class SmallPt {
                 writer.write("" + toInt(c[i].x) + " " + toInt(c[i].y) + " " + toInt(c[i].z) + " ");
             }
         }
+    }
+
+    @State(Scope.Thread)
+    public static class BenchState {
+        public int width = 408;
+        public int height = 306;
+        public int samplesPerPixel = 8;
+        public short[][] Xi = new short[height][3];
+
+        @Setup(Level.Iteration)
+        public void setup() {
+            Random random = new SecureRandom();
+            for (int y = 0; y < height; y++) {
+                long r = random.nextLong();
+                Xi[y][0] = (short) ((r >> 48) & 0xFFFF);
+                Xi[y][1] = (short) ((r >> 32) & 0xFFFF);
+                Xi[y][2] = (short) ((r >> 16) & 0xFFFF);
+            }
+        }
+    }
+
+    @Benchmark
+    @Threads(1)
+    public Vec[] _01_1MSamples_singleThread(BenchState state) {
+        return render(state.width, state.height, state.samplesPerPixel / 4, state.Xi);
+    }
+
+    @Benchmark
+    @Threads(Threads.MAX)
+    public Vec[] _02_1MSamples_multiThread(BenchState state) {
+        return render(state.width, state.height, state.samplesPerPixel / 4, state.Xi);
     }
 }

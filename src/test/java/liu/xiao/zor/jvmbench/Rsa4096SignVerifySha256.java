@@ -63,25 +63,25 @@ public class Rsa4096SignVerifySha256 {
         return state.verifier.verify(state.signature);
     }
 
-    @Benchmark
+//    @Benchmark
     @Threads(1)
     public static byte[] _01_signSingleThread(Rsa4096SignVerifySha256 state) throws Exception {
         return sign(state);
     }
 
-    @Benchmark
+//    @Benchmark
     @Threads(Threads.MAX)
     public static byte[] _02_signMultiThread(Rsa4096SignVerifySha256 state) throws Exception {
         return sign(state);
     }
 
-    @Benchmark
+//    @Benchmark
     @Threads(1)
     public static boolean _03_verifySingleThread(Rsa4096SignVerifySha256 state) throws Exception {
         return verify(state);
     }
 
-    @Benchmark
+//    @Benchmark
     @Threads(Threads.MAX)
     public static boolean _04_verifyMultiThread(Rsa4096SignVerifySha256 state) throws Exception {
         return verify(state);

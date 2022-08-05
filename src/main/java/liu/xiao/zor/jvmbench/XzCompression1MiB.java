@@ -7,14 +7,14 @@ import org.tukaani.xz.XZOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.security.SecureRandom;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
 @State(Scope.Thread)
 public class XzCompression1MiB {
 
     public int size = 1048576;
-    public int chunkSize = 1024;
-    public int chunkMaxRepeatTimes = 3;
 
     public byte[] inputBytes = new byte[size];
     public ByteArrayOutputStream compressedOutputStream = new ByteArrayOutputStream(size);
@@ -23,17 +23,24 @@ public class XzCompression1MiB {
     @Setup(Level.Iteration)
     public void setup() throws IOException {
         xzOutputStream = new XZOutputStream(compressedOutputStream, new LZMA2Options());
+
         Random random = new SecureRandom();
-        byte[] chunkBytes = new byte[chunkSize];
-        for (int inputPos = 0; inputPos < inputBytes.length; ) {
-            random.nextBytes(chunkBytes);
-            int repeatTimes = 1 + random.nextInt(chunkMaxRepeatTimes);
-            for (int i = 0; i < repeatTimes && inputPos < inputBytes.length; ++i) {
-                for (int chunkPos = 0; chunkPos < chunkBytes.length && inputPos < inputBytes.length; ++chunkPos) {
-                    inputBytes[inputPos] = chunkBytes[chunkPos];
-                    ++inputPos;
-                }
-            }
+        List<byte[]> dictionary = new ArrayList<>();
+        int remainingDictionarySize = size / 2;
+        while (remainingDictionarySize > 0) {
+            int elementSize = 1 + random.nextInt(remainingDictionarySize);
+            byte[] element = new byte[elementSize];
+            random.nextBytes(element);
+            dictionary.add(element);
+            remainingDictionarySize -= elementSize;
+        }
+
+        int position = 0;
+        while (position < inputBytes.length) {
+            int index = random.nextInt(dictionary.size());
+            int length = Math.min(dictionary.get(index).length, inputBytes.length - position);
+            System.arraycopy(dictionary.get(index), 0, inputBytes, position, length);
+            position += length;
         }
     }
 

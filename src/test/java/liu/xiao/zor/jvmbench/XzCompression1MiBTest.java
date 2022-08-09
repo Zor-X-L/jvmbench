@@ -1,12 +1,11 @@
 package liu.xiao.zor.jvmbench;
 
+import org.junit.Assert;
 import org.junit.Test;
 import org.tukaani.xz.XZInputStream;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-
-import static org.junit.Assert.assertEquals;
 
 public class XzCompression1MiBTest {
 
@@ -14,19 +13,15 @@ public class XzCompression1MiBTest {
     public void case1() throws IOException {
         XzCompression1MiB xz = new XzCompression1MiB();
         xz.setup();
-        XzCompression1MiB.compress(xz);
-        double compressionRatio = (double) xz.compressedOutputStream.size() / xz.size;
+        double compressionRatio = (double) xz.compressedBytes.length / xz.size;
         System.out.println("Compression Ratio = " + compressionRatio);
 
-        byte[] decompressedBytes = new byte[xz.size];
         ByteArrayInputStream inputStream = new ByteArrayInputStream(
-                xz.compressedOutputStream.toByteArray(), 0, xz.compressedOutputStream.size());
+                xz.compressedBytes, 0, xz.compressedBytes.length);
         XZInputStream xzInputStream = new XZInputStream(inputStream);
 
-        int numBytesRead = xzInputStream.read(decompressedBytes);
-        assertEquals(xz.size, numBytesRead);
-        for (int i = 0; i < decompressedBytes.length; ++i) {
-            assertEquals(xz.inputBytes[i], decompressedBytes[i]);
-        }
+        byte[] decompressedBytes = new byte[xz.size];
+        Assert.assertEquals(xz.size, xzInputStream.read(decompressedBytes));
+        Assert.assertArrayEquals(decompressedBytes, xz.rawBytes);
     }
 }

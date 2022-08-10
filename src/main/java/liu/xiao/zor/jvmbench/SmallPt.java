@@ -296,22 +296,29 @@ public class SmallPt {
         }
     }
 
-    public static Vec[] render(int w, int h, int quarterSamples, short[][] Xi) {
+    public static Vec[] render(int w, int h, int quarterSamples, short[][] Xi, boolean printProgress) {
         Vec cx = new Vec(w * .5135 / h), cy = cx.cross(CAM.d).norm().scale(.5135);
         Vec[] c = new Vec[w * h];
         for (int i = 0; i < c.length; i++) c[i] = new Vec();
-        for (int y = 0; y < h; y++) renderRow(w, h, quarterSamples, cx, cy, y, Xi[y], c);
+        for (int y = 0; y < h; y++) {
+            if (printProgress) {
+                System.err.printf("\rRendering (%d spp) %5.2f%%", quarterSamples * 4, 100. * y / (h - 1));
+            }
+            renderRow(w, h, quarterSamples, cx, cy, y, Xi[y], c);
+        }
         return c;
     }
 
-    public static Vec[] parallelRender(int w, int h, int quarterSamples, short[][] Xi) {
+    public static Vec[] parallelRender(int w, int h, int quarterSamples, short[][] Xi, boolean printProgress) {
         Vec cx = new Vec(w * .5135 / h), cy = cx.cross(CAM.d).norm().scale(.5135);
         Vec[] c = new Vec[w * h];
         for (int i = 0; i < c.length; i++) c[i] = new Vec();
         List<Integer> yList = new ArrayList<>();
         for (int y = 0; y < h; y++) yList.add(y);
         yList.parallelStream().forEach(y -> {
-            System.err.printf("\rRendering (%d spp) %5.2f%%", quarterSamples * 4, 100. * y / (h - 1));
+            if (printProgress) {
+                System.err.printf("\rRendering (%d spp) %5.2f%%", quarterSamples * 4, 100. * y / (h - 1));
+            }
             renderRow(w, h, quarterSamples, cx, cy, y, Xi[y], c);
         });
         return c;
@@ -321,7 +328,7 @@ public class SmallPt {
         int w = 1024, h = 768, samples = args.length > 0 ? Integer.parseInt(args[0]) / 4 : 1; // # samples
         short[][] Xi = new short[h][3];
         for (int y = 0; y < h; y++) Xi[y][2] = (short) (y * y * y);
-        Vec[] c = parallelRender(w, h, samples, Xi);
+        Vec[] c = parallelRender(w, h, samples, Xi, true);
         try (BufferedWriter writer = Files.newBufferedWriter(
                 Paths.get("image.ppm"), StandardCharsets.ISO_8859_1)) {
             writer.write("P3\n" + w + " " + h + "\n255\n");
@@ -353,12 +360,14 @@ public class SmallPt {
     @Benchmark
     @Threads(1)
     public Vec[] _01_1MSamples_singleThread(BenchState state) {
-        return render(state.width, state.height, state.samplesPerPixel / 4, state.Xi);
+        return render(state.width, state.height,
+                state.samplesPerPixel / 4, state.Xi, false);
     }
 
     @Benchmark
-    @Threads(Threads.MAX)
+    @Threads(1)
     public Vec[] _02_1MSamples_multiThread(BenchState state) {
-        return render(state.width, state.height, state.samplesPerPixel / 4, state.Xi);
+        return parallelRender(state.width, state.height,
+                state.samplesPerPixel / 4, state.Xi, false);
     }
 }

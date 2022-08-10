@@ -157,7 +157,7 @@ public class SmallPtTest {
     public void parallelRender() throws Exception {
         short[][] Xi = new short[HEIGHT][3];
         for (int y = 0; y < HEIGHT; y++) Xi[y][2] = (short) (y * y * y);
-        SmallPt.Vec[] c = SmallPt.parallelRender(WIDTH, HEIGHT, SAMPLES / 4, Xi);
+        SmallPt.Vec[] c = SmallPt.parallelRender(WIDTH, HEIGHT, SAMPLES / 4, Xi, true);
         Ppm ppm = new Ppm(WIDTH, HEIGHT, c);
         ppm.write(Paths.get(RESOURCE_ROOT, "smallPt-parallelRender25k.ppm"));
         assertResultCorrect(ppm);
@@ -173,7 +173,7 @@ public class SmallPtTest {
             Xi[y][1] = (short) ((r >> 32) & 0xFFFF);
             Xi[y][2] = (short) ((r >> 16) & 0xFFFF);
         }
-        SmallPt.Vec[] c = SmallPt.parallelRender(WIDTH, HEIGHT, SAMPLES / 4, Xi);
+        SmallPt.Vec[] c = SmallPt.parallelRender(WIDTH, HEIGHT, SAMPLES / 4, Xi, true);
         Ppm ppm = new Ppm(WIDTH, HEIGHT, c);
         ppm.write(Paths.get(RESOURCE_ROOT, "smallPt-parallelRenderRandom25k.ppm"));
         assertResultCorrect(ppm);

@@ -183,35 +183,6 @@ public class SmallPt {
         return t.get() < inf;
     }
 
-    private static Vec radiance(Ray r, int depth, short[] Xi) {
-        MutableDouble t = new MutableDouble(0); // distance to intersection
-        MutableInteger id = new MutableInteger(0); // id of intersected object
-        if (!intersect(r, t, id)) return new Vec(); // if missed, return black
-        Sphere obj = SPHERES[id.get()]; // the hit object
-        Vec x = r.o.add(r.d.scale(t.get())), n = x.subtract(obj.p).norm(), nl = n.dot(r.d) < 0 ? n : n.scale(-1), f = obj.c;
-        double p = f.x > f.y && f.x > f.z ? f.x : Math.max(f.y, f.z); // max reflectionType
-        if (++depth > 5) if (eRand48(Xi) < p) f = f.scale(1 / p);
-        else return obj.e; // R.R.
-        if (obj.reflectionType == ReflectionType.DIFFUSE) { // Ideal DIFFUSE reflectionType
-            double r1 = 2 * Math.PI * eRand48(Xi), r2 = eRand48(Xi), r2s = Math.sqrt(r2);
-            Vec u = ((Math.abs(nl.x) > .1 ? new Vec(0, 1) : new Vec(1)).cross(nl)).norm(), v = nl.cross(u);
-            Vec d = u.scale(Math.cos(r1) * r2s).add(v.scale(Math.sin(r1) * r2s)).add(nl.scale(Math.sqrt(1 - r2))).norm();
-            return obj.e.add(f.multiply(radiance(new Ray(x, d), depth, Xi)));
-        } else if (obj.reflectionType == ReflectionType.SPECULAR) // Ideal SPECULAR reflectionType
-            return obj.e.add(f.multiply(radiance(new Ray(x, r.d.subtract(n.scale(2 * n.dot(r.d)))), depth, Xi)));
-        Ray reflectedRay = new Ray(x, r.d.subtract(n.scale(2 * n.dot(r.d)))); // Ideal dielectric REFRACTION
-        boolean into = n.dot(nl) > 0; // Ray from outside going in?
-        double nc = 1, nt = 1.5, nnt = into ? nc / nt : nt / nc, ddn = r.d.dot(nl), cos2t;
-        if ((cos2t = 1 - nnt * nnt * (1 - ddn * ddn)) < 0) // Total internal reflectionType
-            return obj.e.add(f.multiply(radiance(reflectedRay, depth, Xi)));
-        Vec tDir = r.d.scale(nnt).subtract(n.scale((into ? 1 : -1) * (ddn * nnt + Math.sqrt(cos2t)))).norm();
-        double a = nt - nc, b = nt + nc, R0 = a * a / (b * b), c = 1 - (into ? -ddn : tDir.dot(n));
-        double Re = R0 + (1 - R0) * c * c * c * c * c, Tr = 1 - Re, P = .25 + .5 * Re, RP = Re / P, TP = Tr / (1 - P);
-        return obj.e.add(f.multiply(depth > 2 ? (eRand48(Xi) < P ?   // Russian roulette
-                radiance(reflectedRay, depth, Xi).scale(RP) : radiance(new Ray(x, tDir), depth, Xi).scale(TP)) :
-                radiance(reflectedRay, depth, Xi).scale(Re).add(radiance(new Ray(x, tDir), depth, Xi).scale(Tr))));
-    }
-
     public static Vec radianceForward(Ray r_, int depth_, short[] Xi) {
         MutableDouble t = new MutableDouble(0); // distance to intersection
         MutableInteger id = new MutableInteger(0); // id of intersected object

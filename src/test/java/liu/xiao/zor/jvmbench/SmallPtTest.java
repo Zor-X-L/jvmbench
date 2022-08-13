@@ -12,6 +12,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.SecureRandom;
+import java.util.Objects;
 import java.util.Random;
 import java.util.Scanner;
 
@@ -59,7 +60,7 @@ public class SmallPtTest {
 
         // Relative Difference: norm(a-b) / mean(norm(a), norm(b))
         // here use L^2-norm as norm()
-        // and quadratic mean (root mean square) as mean()
+        // and quadratic mean (root-mean-square) as mean()
         public double relativeDifference(Ppm b) {
             Assert.assertEquals(w, b.w);
             Assert.assertEquals(h, b.h);
@@ -89,7 +90,7 @@ public class SmallPtTest {
     static {
         String resourceRoot;
         try {
-            resourceRoot = Paths.get(CLASS.getResource("/").toURI()).toString();
+            resourceRoot = Paths.get(Objects.requireNonNull(CLASS.getResource("/")).toURI()).toString();
         } catch (URISyntaxException e) {
             resourceRoot = null;
             e.printStackTrace();

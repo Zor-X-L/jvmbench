@@ -312,15 +312,16 @@ public class SmallPt {
     @org.openjdk.jmh.annotations.State(Scope.Thread)
     public static class State {
         @Param({"408"})
-        public int sptW = 408;
+        public int sptW;
         @Param({"306"})
-        public int sptH = 306;
+        public int sptH;
         @Param({"8"})
-        public int sptSpp = 8;
-        public short[][] Xi = new short[sptH][3];
+        public int sptSpp;
+        public short[][] Xi;
 
         @Setup(Level.Iteration)
         public void setup() {
+            Xi = new short[sptH][3];
             Random random = new SecureRandom();
             for (int y = 0; y < sptH; y++) {
                 long r = random.nextLong();

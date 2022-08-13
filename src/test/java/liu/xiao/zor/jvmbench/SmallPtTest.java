@@ -19,8 +19,8 @@ import java.util.Scanner;
 public class SmallPtTest {
 
     private static class Ppm {
-        public int w, h, maxValue;
-        public int[] rgb;
+        public final int w, h, maxValue;
+        public final int[] rgb;
 
         Ppm(int w, int h, SmallPt.Vec[] c) {
             this.w = w;

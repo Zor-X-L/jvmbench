@@ -13,7 +13,7 @@ public class LuDecomposition {
     // 112 * 8 Bytes % 128 Bytes = 0, so it fits in most common cache line size (64/128)
     // 112^3 * 2 / 3 FLOP = 936,619 FLOP
     @Param({"112"})
-    public int dimension;
+    public int luMatDim;
 
     public RealMatrix coefficients;
     public RealVector constants;
@@ -21,15 +21,15 @@ public class LuDecomposition {
     @Setup(Level.Iteration)
     public void setup() {
         Random random = new SecureRandom();
-        coefficients = MatrixUtils.createRealMatrix(dimension, dimension);
-        for (int i = 0; i < dimension; ++i) {
-            for (int j = 0; j < dimension; ++j) {
+        coefficients = MatrixUtils.createRealMatrix(luMatDim, luMatDim);
+        for (int i = 0; i < luMatDim; ++i) {
+            for (int j = 0; j < luMatDim; ++j) {
                 coefficients.setEntry(i, j, random.nextDouble());
             }
         }
 
-        double[] constantData = new double[dimension];
-        for (int i = 0; i < dimension; ++i) {
+        double[] constantData = new double[luMatDim];
+        for (int i = 0; i < luMatDim; ++i) {
             constantData[i] = random.nextDouble();
         }
         constants = MatrixUtils.createRealVector(constantData);

@@ -9,9 +9,9 @@ public class LuDecompositionTest {
 
     @Test
     public void case1() {
-        LuDecomposition state = new LuDecomposition();
-        state.setup();
-        RealVector solution = LuDecomposition.solve(state);
-        assertTrue(state.coefficients.operate(solution).subtract(state.constants).getNorm() < 1e-5);
+        LuDecomposition lu = new LuDecomposition();
+        lu.setup();
+        RealVector solution = LuDecomposition.solve(lu);
+        assertTrue(lu.coefficients.operate(solution).subtract(lu.constants).getNorm() < 1e-5);
     }
 }

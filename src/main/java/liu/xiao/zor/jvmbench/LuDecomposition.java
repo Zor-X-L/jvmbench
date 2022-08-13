@@ -7,18 +7,21 @@ import java.security.SecureRandom;
 import java.util.Random;
 
 @State(Scope.Thread)
-public class LuDecomposition32x32 {
+public class LuDecomposition {
 
-    // 32^2 * 8 = 8 KiB，一般数据L1足够放得下，包括超线程情况下
-    // 32^3 * 2 / 3 = 22 KFLOP
-    public int dimension = 32;
+    // 112^2 * 8 Bytes = 98 KiB, fits in L2 cache, usually yields higher flops than L1 & L3
+    // 112 * 8 Bytes % 128 Bytes = 0, so it fits in most common cache line size (64/128)
+    // 112^3 * 2 / 3 FLOP = 936,619 FLOP
+    @Param({"112"})
+    public int dimension;
 
-    public RealMatrix coefficients = MatrixUtils.createRealMatrix(dimension, dimension);
+    public RealMatrix coefficients;
     public RealVector constants;
 
     @Setup(Level.Iteration)
     public void setup() {
         Random random = new SecureRandom();
+        coefficients = MatrixUtils.createRealMatrix(dimension, dimension);
         for (int i = 0; i < dimension; ++i) {
             for (int j = 0; j < dimension; ++j) {
                 coefficients.setEntry(i, j, random.nextDouble());
@@ -32,20 +35,20 @@ public class LuDecomposition32x32 {
         constants = MatrixUtils.createRealVector(constantData);
     }
 
-    public static RealVector solve(LuDecomposition32x32 lu) {
+    public static RealVector solve(LuDecomposition lu) {
         DecompositionSolver solver = new LUDecomposition(lu.coefficients).getSolver();
         return solver.solve(lu.constants);
     }
 
     @Benchmark
     @Threads(1)
-    public static RealVector _01_singleThread(LuDecomposition32x32 lu) {
+    public static RealVector _01_singleThread(LuDecomposition lu) {
         return solve(lu);
     }
 
     @Benchmark
     @Threads(Threads.MAX)
-    public static RealVector _02_multiThread(LuDecomposition32x32 lu) {
+    public static RealVector _02_multiThread(LuDecomposition lu) {
         return solve(lu);
     }
 }

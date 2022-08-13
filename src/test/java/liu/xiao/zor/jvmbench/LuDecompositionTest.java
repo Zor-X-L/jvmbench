@@ -5,13 +5,13 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertTrue;
 
-public class LuDecomposition32X32Test {
+public class LuDecompositionTest {
 
     @Test
     public void case1() {
-        LuDecomposition32x32 state = new LuDecomposition32x32();
+        LuDecomposition state = new LuDecomposition();
         state.setup();
-        RealVector solution = LuDecomposition32x32.solve(state);
+        RealVector solution = LuDecomposition.solve(state);
         assertTrue(state.coefficients.operate(solution).subtract(state.constants).getNorm() < 1e-5);
     }
 }

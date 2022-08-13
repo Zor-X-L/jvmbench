@@ -271,12 +271,12 @@ public class SmallPt {
         }
     }
 
-    public static void renderRow(int w, int h, int quarterSamples, Vec cx, Vec cy, int y, short[] Xi, Vec[] c) {
+    public static void renderRow(int w, int h, int quarterSpp, Vec cx, Vec cy, int y, short[] Xi, Vec[] c) {
         for (short x = 0; x < w; x++) {  // Loop cols
             for (int sy = 0, i = (h - y - 1) * w + x; sy < 2; sy++) { // 2x2 subpixel rows
                 for (int sx = 0; sx < 2; sx++) { // 2x2 subpixel cols
                     Vec r = new Vec();
-                    for (int s = 0; s < quarterSamples; s++) {
+                    for (int s = 0; s < quarterSpp; s++) {
                         double r1 = 2 * eRand48(Xi), dx = r1 < 1 ? Math.sqrt(r1) - 1 : 1 - Math.sqrt(2 - r1);
                         double r2 = 2 * eRand48(Xi), dy = r2 < 1 ? Math.sqrt(r2) - 1 : 1 - Math.sqrt(2 - r2);
                         Vec d = cx.scale(((sx + .5 + dx) / 2 + x) / w - .5)
@@ -288,7 +288,7 @@ public class SmallPt {
                         // But even after fixing the issue, gcc and clang still produce different result.
                         // Maybe because different implementation of math functions like sin, cos, etc.
                         d.norm();
-                        r = r.add(radianceForward(new Ray(CAM.o.add(d.scale(140)), d), 0, Xi).scale(1. / quarterSamples));
+                        r = r.add(radianceForward(new Ray(CAM.o.add(d.scale(140)), d), 0, Xi).scale(1. / quarterSpp));
                     } // Camera rays are pushed ^^^^^ forward to start in interior
                     c[i] = c[i].add(new Vec(clamp(r.x), clamp(r.y), clamp(r.z)).scale(.25));
                 }
@@ -296,20 +296,20 @@ public class SmallPt {
         }
     }
 
-    public static Vec[] render(int w, int h, int quarterSamples, short[][] Xi, boolean printProgress) {
+    public static Vec[] render(int w, int h, int quarterSpp, short[][] Xi, boolean printProgress) {
         Vec cx = new Vec(w * .5135 / h), cy = cx.cross(CAM.d).norm().scale(.5135);
         Vec[] c = new Vec[w * h];
         for (int i = 0; i < c.length; i++) c[i] = new Vec();
         for (int y = 0; y < h; y++) {
             if (printProgress) {
-                System.err.printf("\rRendering (%d spp) %5.2f%%", quarterSamples * 4, 100. * y / (h - 1));
+                System.err.printf("\rRendering (%d spp) %5.2f%%", quarterSpp * 4, 100. * y / (h - 1));
             }
-            renderRow(w, h, quarterSamples, cx, cy, y, Xi[y], c);
+            renderRow(w, h, quarterSpp, cx, cy, y, Xi[y], c);
         }
         return c;
     }
 
-    public static Vec[] parallelRender(int w, int h, int quarterSamples, short[][] Xi, boolean printProgress) {
+    public static Vec[] parallelRender(int w, int h, int quarterSpp, short[][] Xi, boolean printProgress) {
         Vec cx = new Vec(w * .5135 / h), cy = cx.cross(CAM.d).norm().scale(.5135);
         Vec[] c = new Vec[w * h];
         for (int i = 0; i < c.length; i++) c[i] = new Vec();
@@ -317,18 +317,18 @@ public class SmallPt {
         for (int y = 0; y < h; y++) yList.add(y);
         yList.parallelStream().forEach(y -> {
             if (printProgress) {
-                System.err.printf("\rRendering (%d spp) %5.2f%%", quarterSamples * 4, 100. * y / (h - 1));
+                System.err.printf("\rRendering (%d spp) %5.2f%%", quarterSpp * 4, 100. * y / (h - 1));
             }
-            renderRow(w, h, quarterSamples, cx, cy, y, Xi[y], c);
+            renderRow(w, h, quarterSpp, cx, cy, y, Xi[y], c);
         });
         return c;
     }
 
     public static void main(String[] args) throws Exception {
-        int w = 1024, h = 768, samples = args.length > 0 ? Integer.parseInt(args[0]) / 4 : 1; // # samples
+        int w = 1024, h = 768, quarterSpp = args.length > 0 ? Integer.parseInt(args[0]) / 4 : 1;
         short[][] Xi = new short[h][3];
         for (int y = 0; y < h; y++) Xi[y][2] = (short) (y * y * y);
-        Vec[] c = parallelRender(w, h, samples, Xi, true);
+        Vec[] c = parallelRender(w, h, quarterSpp, Xi, true);
         try (BufferedWriter writer = Files.newBufferedWriter(
                 Paths.get("image.ppm"), StandardCharsets.ISO_8859_1)) {
             writer.write("P3\n" + w + " " + h + "\n255\n");
@@ -338,17 +338,20 @@ public class SmallPt {
         }
     }
 
-    @State(Scope.Thread)
-    public static class BenchState {
-        public int width = 408;
-        public int height = 306;
-        public int samplesPerPixel = 8;
-        public short[][] Xi = new short[height][3];
+    @org.openjdk.jmh.annotations.State(Scope.Thread)
+    public static class State {
+        @Param({"408"})
+        public int sptW = 408;
+        @Param({"306"})
+        public int sptH = 306;
+        @Param({"8"})
+        public int sptSpp = 8;
+        public short[][] Xi = new short[sptH][3];
 
         @Setup(Level.Iteration)
         public void setup() {
             Random random = new SecureRandom();
-            for (int y = 0; y < height; y++) {
+            for (int y = 0; y < sptH; y++) {
                 long r = random.nextLong();
                 Xi[y][0] = (short) ((r >> 48) & 0xFFFF);
                 Xi[y][1] = (short) ((r >> 32) & 0xFFFF);
@@ -359,15 +362,13 @@ public class SmallPt {
 
     @Benchmark
     @Threads(1)
-    public Vec[] _01_1MSamples_singleThread(BenchState state) {
-        return render(state.width, state.height,
-                state.samplesPerPixel / 4, state.Xi, false);
+    public Vec[] _01_singleThread(State state) {
+        return render(state.sptW, state.sptH, state.sptSpp / 4, state.Xi, false);
     }
 
     @Benchmark
     @Threads(1)
-    public Vec[] _02_1MSamples_multiThread(BenchState state) {
-        return parallelRender(state.width, state.height,
-                state.samplesPerPixel / 4, state.Xi, false);
+    public Vec[] _02_multiThread(State state) {
+        return parallelRender(state.sptW, state.sptH, state.sptSpp / 4, state.Xi, false);
     }
 }
